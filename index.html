@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Tilfeldig radiologi-case</title>
+    <title>Tilfeldig patologi case</title>
     <style>
         body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 16px; line-height: 1.4; }
         .wrap { max-width: 1600px; margin: 0 auto; display: grid; gap: 12px; }
@@ -33,7 +33,9 @@
         button:disabled { opacity: .6; cursor: not-allowed; }
         .bmc-button { height: 40px !important; line-height: 40px !important; font-size: 14px !important; display: inline-flex !important; align-items: center !important; border-radius: 10px !important; }
 
-        .header { border-bottom: 1px solid #eee; margin-bottom: 10px; }
+        .header { margin-bottom: 10px; }
+        .row-1 { border-bottom: 1px solid #eee; }
+        .row-2 { margin-top: 1rem;}
         .header-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; gap: 10px; }
         .header-row .left, .header-row .middle, .header-row .right { display: flex; gap: 10px; align-items: center; flex: 1; }
         .header-row .middle { justify-content: center; }
@@ -183,6 +185,16 @@
                 <button class="logoutBtn outline" type="button" style="display:none;">Logg ut</button>
             </div>
         </div>
+
+        <div class="header-row row-2" id="row2">
+            <div class="left" style="flex: 3; display: flex; gap: 10px;">
+                <input type="text" id="caseSearchInput" placeholder="Søk på casenummer eller casetittel..." list="caseList" style="width: 50%; padding: 10px; border-radius: 10px; border: 1px solid #ddd; font-family: inherit; font-size: 14px; box-sizing: border-box;">
+                <datalist id="caseList"></datalist>
+                <button id="searchBtn" type="button" class="outline" style="font-size: 14px;">Åpne case</button>
+            </div>
+            <div class="right">
+            </div>
+        </div>
     </div>
 
     <div class="box" id="oppBox" style="display:none;">
@@ -273,6 +285,10 @@
     const slideSwitcher = document.getElementById("slideSwitcher");
     const uioLink = document.getElementById("uioLink");
 
+    const caseSearchInput = document.getElementById("caseSearchInput");
+    const caseList = document.getElementById("caseList");
+    const searchBtn = document.getElementById("searchBtn");
+
     const oppBox = document.getElementById("oppBox");
     const oppEl = document.getElementById("opp");
     const oppTitle = document.getElementById("oppTitle");
@@ -282,6 +298,7 @@
     const beskrivelseEl = document.getElementById("beskrivelse");
 
     let allCaseIds = [];       // just IDs from metadata
+    let caseNamesById = {};    // ID -> Title
     let userProgress = {};     // caseId -> progressDoc
     let progressListener = null; // Unsubscribe function
     let metadataListener = null; // Unsubscribe function
@@ -609,20 +626,38 @@
         currentCase = c;
         revealBtn.style.display = "";
         reportErrorBtn.style.display = "";
-        imgUrls = getImageUrls(c);
+
+        let slides = [];
+        if (Array.isArray(c.slides)) {
+            slides = c.slides;
+            imgUrls = slides.map(s => s.url);
+        } else {
+            imgUrls = getImageUrls(c);
+            slides = imgUrls.map((url, i) => ({
+                url: url,
+                n: i + 1,
+                stain: null
+            }));
+        }
         hideFasit();
 
         // Slide switcher
         slideSwitcher.innerHTML = "";
-        if (imgUrls.length > 1) {
-            imgUrls.forEach((url, i) => {
+        if (slides.length > 1) {
+            slides.forEach((slide, i) => {
                 const btn = document.createElement("button");
                 btn.type = "button";
                 btn.className = "slide-btn outline";
                 if (i === 0) btn.classList.add("active");
-                btn.textContent = `Snitt ${i + 1}`;
+
+                let label = `Snitt ${slide.n || (i + 1)}`;
+                if (slide.stain) {
+                    label += ` - ${slide.stain}`;
+                }
+                btn.textContent = label;
+
                 btn.onclick = () => {
-                    microscopeIframe.src = url;
+                    microscopeIframe.src = slide.url;
                     slideSwitcher.querySelectorAll(".slide-btn").forEach(b => b.classList.remove("active"));
                     btn.classList.add("active");
                 };
@@ -633,9 +668,9 @@
             slideSwitcher.style.display = "none";
         }
 
-        // Microscope iframe (tidligere snitt-lenker er kommentert ut)
-        if (imgUrls.length > 0) {
-            microscopeIframe.src = imgUrls[0];
+        // Microscope iframe
+        if (slides.length > 0) {
+            microscopeIframe.src = slides[0].url;
             iframeContainer.style.display = "block";
         } else {
             microscopeIframe.src = "";
@@ -645,16 +680,22 @@
         /*
         // Snitt links
         snittLinks.innerHTML = "";
-        imgUrls.forEach((url, i) => {
+        slides.forEach((slide, i) => {
             const h1 = document.createElement('h1');
             const a = document.createElement('a');
-            a.href = url;
+            a.href = slide.url;
             a.target = "_blank";
-            a.textContent = imgUrls.length > 1 ? `Mikroskopisnitt ${i + 1}` : "Mikroskopisnitt";
+            
+            let label = slides.length > 1 ? `Mikroskopisnitt ${slide.n || (i + 1)}` : "Mikroskopisnitt";
+            if (slide.stain) {
+                label += ` - ${slide.stain}`;
+            }
+            a.textContent = label;
+            
             h1.appendChild(a);
             snittLinks.appendChild(h1);
         });
-        snittLinks.style.display = imgUrls.length ? "block" : "none";
+        snittLinks.style.display = slides.length ? "block" : "none";
         */
 
         // Caseinfo
@@ -714,6 +755,68 @@
         }
     }
 
+    function populateSearchList(byId) {
+        caseNamesById = byId;
+        caseList.innerHTML = "";
+        const ids = Object.keys(byId).sort((a, b) => Number(a) - Number(b));
+        ids.forEach(id => {
+            // Option for ID
+            const optId = document.createElement("option");
+            optId.value = id;
+            caseList.appendChild(optId);
+
+            // Option for Title
+            const title = byId[id];
+            if (title) {
+                const optTitle = document.createElement("option");
+                optTitle.value = title;
+                caseList.appendChild(optTitle);
+            }
+        });
+    }
+
+    async function openSearchedCase() {
+        const val = caseSearchInput.value.trim();
+        if (!val) return;
+        
+        let caseId = null;
+
+        // 1. Er det en kjent ID?
+        if (allCaseIds.includes(val)) {
+            caseId = val;
+        } else {
+            // 2. Er det en kjent tittel?
+            for (const [id, title] of Object.entries(caseNamesById)) {
+                if (title === val) {
+                    caseId = id;
+                    break;
+                }
+            }
+        }
+
+        // 3. Fallback for gammelt format "ID: Tittel"
+        if (!caseId && val.includes(":")) {
+            const possibleId = val.split(":")[0].trim();
+            if (allCaseIds.includes(possibleId)) {
+                caseId = possibleId;
+            }
+        }
+        
+        if (caseId) {
+            try {
+                // Skjul keyboard på mobil ved å fjerne fokus
+                caseSearchInput.blur();
+                const c = await fetchCaseById(caseId);
+                renderCase(c);
+                caseSearchInput.value = "";
+            } catch (e) {
+                console.error(e);
+                showToast(`Fant ikke case ${caseId}`);
+                setStatus("");
+            }
+        }
+    }
+
     let metadataPromise = null;
     async function loadMetadata() {
         if (allCaseIds.length) return allCaseIds;
@@ -724,11 +827,23 @@
             nextBtn.disabled = true;
             revealBtn.disabled = true;
 
+            // Fetch case names for search
+            onSnapshot(doc(db, "metadata", "caseName"), (snap) => {
+                if (snap.exists()) {
+                    caseNamesById = snap.data().byId || {};
+                    // Ikke populær listen før man begynner å skrive
+                    if (caseSearchInput.value.trim()) {
+                        populateSearchList(caseNamesById);
+                    } else {
+                        caseList.innerHTML = "";
+                    }
+                }
+            });
+
             // Fetch a single metadata document that lists all case IDs
             metadataListener = onSnapshot(doc(db, "metadata", "config"), (snap) => {
                 if (snap.exists()) {
                     allCaseIds = snap.data().allCaseIds || [];
-                    // Populate datalist
                 } else {
                     console.warn("metadata/config not found.");
                     allCaseIds = [];
@@ -763,6 +878,32 @@
     }
 
     nextBtn.addEventListener("click", nextCase);
+    searchBtn.addEventListener("click", openSearchedCase);
+    caseSearchInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") openSearchedCase();
+    });
+    caseSearchInput.addEventListener("input", (e) => {
+        const val = caseSearchInput.value.trim();
+        
+        if (val.length > 0) {
+            if (caseList.children.length === 0) {
+                populateSearchList(caseNamesById);
+            }
+        } else {
+            caseList.innerHTML = "";
+        }
+
+        // Åpne case automatisk kun hvis det er et valg fra dropdown (inputType er undefined i de fleste nettlesere)
+        if (val && !e.inputType) {
+            const options = caseList.options;
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value === val) {
+                    openSearchedCase();
+                    break;
+                }
+            }
+        }
+    });
     deleteProgressBtn.addEventListener("click", async () => {
         if (!user || !confirm("Er du sikker på at du vil slette ALL progresjon? Dette kan ikke angres.")) return;
         
