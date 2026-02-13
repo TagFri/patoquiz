@@ -6,7 +6,8 @@
     <title>Tilfeldig radiologi-case</title>
     <style>
         body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 16px; line-height: 1.4; }
-        .wrap { max-width: 900px; margin: 0 auto; display: grid; gap: 12px; }
+        .wrap { max-width: 1600px; margin: 0 auto; display: grid; gap: 12px; }
+        .header, .box, #revealBtn, #nextBtn, #iframeContainer, #snittLinks, .footer { max-width: 1200px; width: 100%; justify-self: center; }
         .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .muted { color: #666; font-size: 14px; }
         .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
@@ -108,6 +109,62 @@
 
         #sr-status { font-weight: 600; color: #111; }
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; z-index: 1000; pointer-events: none; }
+        
+        #microscopeIframe {
+            width: 100%;
+            height: 700px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+        }
+        .slide-btn {
+            margin-right: 8px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        .slide-btn.active {
+            background: #007bff;
+            border-color: #007bff;
+            color: #fff;
+        }
+        #uioLink {
+            display: inline-block;
+            margin-top: 15px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        #uioLink:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            #microscopeIframe {
+                height: 450px;
+            }
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            padding-bottom: 40px;
+        }
+
+        .footer h3 {
+            color: #111;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .footer p {
+            margin: 5px 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
     </style>
 </head>
 <body>
@@ -135,6 +192,11 @@
 
     <div id="snittLinks" style="display:none; margin: 20px 0;"></div>
 
+    <div id="iframeContainer" style="display:none; margin: 20px 0;">
+        <div id="slideSwitcher" style="margin-bottom: 10px;"></div>
+        <iframe id="microscopeIframe" src="" allowfullscreen></iframe>
+    </div>
+
     <button id="revealBtn" type="button" class="secondary">Vis fasit</button>
 
     <div class="box" id="fasitBox" style="display:none;">
@@ -146,6 +208,8 @@
             <pre id="beskrivelse"></pre>
         </div>
 
+        <a id="uioLink" href="#" target="_blank" style="display: none;">Lenke til UiO nettside</a>
+
         <div class="rating-btns" id="ratingBtns" style="display:none;">
             <button id="btn-not-possible" class="btn-impossible" type="button" onclick="rateCase('not_possible')">Ikke mulig</button>
             <button id="btn-hard" class="btn-hard" type="button" onclick="rateCase('hard')">Vanskelig</button>
@@ -154,6 +218,12 @@
         </div>
     </div>
     <button id="nextBtn" type="button" style="margin-top: 20px; display: none;">Neste case</button>
+    <footer class="footer">
+        <h3>Patoquiz - gjort bedre!</h3>
+        <p>Vipps-donasjon til 41886 for drift og videreutvikling gir god karma!</p>.
+        <p>Pengene går til å holde siden i live og mindre cranky. Kanskje en kaffekopp til programmeringen på sene
+            kvelder</p>
+    </footer>
 </div>
 
 <script type="module">
@@ -198,6 +268,10 @@
     const deleteProgressBtn = document.getElementById("deleteProgressBtn");
     const reportErrorBtn = document.getElementById("reportErrorBtn");
     const snittLinks = document.getElementById("snittLinks");
+    const iframeContainer = document.getElementById("iframeContainer");
+    const microscopeIframe = document.getElementById("microscopeIframe");
+    const slideSwitcher = document.getElementById("slideSwitcher");
+    const uioLink = document.getElementById("uioLink");
 
     const oppBox = document.getElementById("oppBox");
     const oppEl = document.getElementById("opp");
@@ -417,6 +491,13 @@
         titleEl.textContent = `${theme} -> ${title}`.trim() || "—";
         beskrivelseEl.textContent = answer;
 
+        if (currentCase.url) {
+            uioLink.href = currentCase.url;
+            uioLink.style.display = "inline-block";
+        } else {
+            uioLink.style.display = "none";
+        }
+
         if (user) {
             const caseId = String(currentCase.id);
             const progress = userProgress[caseId] || {
@@ -518,6 +599,8 @@
             setStatus("Ingen flere caser i denne modusen.");
             oppBox.style.display = "none";
             snittLinks.style.display = "none";
+            iframeContainer.style.display = "none";
+            microscopeIframe.src = "";
             revealBtn.style.display = "none";
             reportErrorBtn.style.display = "none";
             hideFasit();
@@ -529,6 +612,37 @@
         imgUrls = getImageUrls(c);
         hideFasit();
 
+        // Slide switcher
+        slideSwitcher.innerHTML = "";
+        if (imgUrls.length > 1) {
+            imgUrls.forEach((url, i) => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "slide-btn outline";
+                if (i === 0) btn.classList.add("active");
+                btn.textContent = `Snitt ${i + 1}`;
+                btn.onclick = () => {
+                    microscopeIframe.src = url;
+                    slideSwitcher.querySelectorAll(".slide-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                };
+                slideSwitcher.appendChild(btn);
+            });
+            slideSwitcher.style.display = "block";
+        } else {
+            slideSwitcher.style.display = "none";
+        }
+
+        // Microscope iframe (tidligere snitt-lenker er kommentert ut)
+        if (imgUrls.length > 0) {
+            microscopeIframe.src = imgUrls[0];
+            iframeContainer.style.display = "block";
+        } else {
+            microscopeIframe.src = "";
+            iframeContainer.style.display = "none";
+        }
+
+        /*
         // Snitt links
         snittLinks.innerHTML = "";
         imgUrls.forEach((url, i) => {
@@ -541,6 +655,7 @@
             snittLinks.appendChild(h1);
         });
         snittLinks.style.display = imgUrls.length ? "block" : "none";
+        */
 
         // Caseinfo
         oppTitle.textContent = `Case ${normalizeCaseId(c)}`;
