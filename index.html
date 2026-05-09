@@ -209,7 +209,13 @@
         <iframe id="microscopeIframe" src="" allowfullscreen></iframe>
     </div>
 
-    <button id="revealBtn" type="button" class="secondary" style="width: 100%; box-sizing: border-box; display: block;">Vis fasit</button>
+    <button id="notatBtn" type="button" class="secondary" style="width: 100%; box-sizing: border-box; display: block;">Notat fra patologen</button>
+    <div class="box" id="notatBox" style="display:none; margin-top: 8px;">
+        <strong>Notat fra patologen</strong>
+        <pre id="notatFraPatolog"></pre>
+    </div>
+
+    <button id="revealBtn" type="button" class="secondary" style="margin-top: 8px; width: 100%; box-sizing: border-box; display: block;">Vis fasit</button>
 
     <div class="box" id="fasitBox" style="display:none; margin-top: 8px;">
         <div style="margin-top:10px;">
@@ -228,12 +234,6 @@
             <button id="btn-easy" class="btn-easy" type="button" onclick="rateCase('easy')">Lett</button>
             <button id="btn-super-easy" class="btn-super-easy" type="button" onclick="rateCase('super_easy')">Superlett</button>
         </div>
-    </div>
-
-    <button id="notatBtn" type="button" class="secondary" style="margin-top: 8px; width: 100%; box-sizing: border-box; display: block;">Notat fra patologen</button>
-    <div class="box" id="notatBox" style="display:none; margin-top: 8px;">
-        <strong>Notat fra patologen</strong>
-        <pre id="notatFraPatolog"></pre>
     </div>
 
     <button id="nextBtn" type="button" style="margin-top: 20px; display: none; width: 100%; box-sizing: border-box;">Neste case</button>
