@@ -209,9 +209,9 @@
         <iframe id="microscopeIframe" src="" allowfullscreen></iframe>
     </div>
 
-    <button id="revealBtn" type="button" class="secondary">Vis fasit</button>
+    <button id="revealBtn" type="button" class="secondary" style="width: 100%; box-sizing: border-box; display: block;">Vis fasit</button>
 
-    <div class="box" id="fasitBox" style="display:none;">
+    <div class="box" id="fasitBox" style="display:none; margin-top: 8px;">
         <div style="margin-top:10px;">
             <div id="title" style="font-weight:700;">—</div>
         </div>
@@ -229,7 +229,14 @@
             <button id="btn-super-easy" class="btn-super-easy" type="button" onclick="rateCase('super_easy')">Superlett</button>
         </div>
     </div>
-    <button id="nextBtn" type="button" style="margin-top: 20px; display: none;">Neste case</button>
+
+    <button id="notatBtn" type="button" class="secondary" style="margin-top: 8px; width: 100%; box-sizing: border-box; display: block;">Notat fra patologen</button>
+    <div class="box" id="notatBox" style="display:none; margin-top: 8px;">
+        <strong>Notat fra patologen</strong>
+        <pre id="notatFraPatolog"></pre>
+    </div>
+
+    <button id="nextBtn" type="button" style="margin-top: 20px; display: none; width: 100%; box-sizing: border-box;">Neste case</button>
     <footer class="footer">
         <h3>Patoquiz - gjort bedre!</h3>
         <p>Vipps-donasjon til 41886 for drift og videreutvikling gir god karma!</p>.
@@ -493,7 +500,26 @@
         revealBtn.textContent = "Vis fasit";
         ratingBtns.style.display = "none";
         nextBtn.style.display = "none";
+        const notatBox = document.getElementById("notatBox");
+        const notatBtn = document.getElementById("notatBtn");
+        if (notatBox) notatBox.style.display = "none";
+        if (notatBtn) notatBtn.textContent = "Notat fra patologen";
     }
+
+    document.getElementById("notatBtn").addEventListener("click", () => {
+        const notatBox = document.getElementById("notatBox");
+        const notatBtn = document.getElementById("notatBtn");
+        const notatEl = document.getElementById("notatFraPatolog");
+        if (notatBox.style.display === "none" || !notatBox.style.display) {
+            const notat = currentCase && currentCase.notatFraPatolog;
+            notatEl.textContent = (notat && String(notat).trim()) ? notat : "Ingen info";
+            notatBox.style.display = "";
+            notatBtn.textContent = "Skjul notat fra patologen";
+        } else {
+            notatBox.style.display = "none";
+            notatBtn.textContent = "Notat fra patologen";
+        }
+    });
 
     function showFasit() {
         if (!currentCase) return;
